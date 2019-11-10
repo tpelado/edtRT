@@ -1,7 +1,6 @@
 import xml.dom.minidom as x
 
-t = ""
-tab = []
+
 
 class boxClass:
     id = None
@@ -18,24 +17,32 @@ class boxClass:
 
 
 
-
-
-doc = x.parse("out.xml")
-pages = doc.getElementsByTagName("page")
-for page in pages:
-    boxes = page.getElementsByTagName("textbox")
-    for box in boxes:
-        textlines = box.getElementsByTagName("textline")
-        for textline in textlines:
-            texts = textline.getElementsByTagName("text")
-            for text in texts:
-                t += text.firstChild.data
-            tab.append(boxClass(box.getAttribute("id"),textline.getAttribute("bbox"),t[:-1],box.getAttribute("bbox")))
-            t = ""
+def parseTextLine():
+    t = ""
+    tab = []
+    doc = x.parse("out.xml")
+    pages = doc.getElementsByTagName("page")
+    for page in pages:
+        boxes = page.getElementsByTagName("textbox")
+        for box in boxes:
+            textlines = box.getElementsByTagName("textline")
+            for textline in textlines:
+                texts = textline.getElementsByTagName("text")
+                for text in texts:
+                    t += text.firstChild.data
+                tab.append(boxClass(box.getAttribute("id"),textline.getAttribute("bbox"),t[:-1],box.getAttribute("bbox")))
+                t = ""
+    doc = x.parse("out.xml")
+    pages = doc.getElementsByTagName("page")
+    for page in pages:
+        layout = page.getElementsByTagName("layout")
+        elt = layout.item(0)
+        parseTextgroup(elt.childNodes[1], None)
+    return tab
 
 tabLayout = []
-
 def parseTextgroup(elt, parentElt):
+    global tabLayout
     id = []
     e = elt.getElementsByTagName("textgroup")
     if e == []:
@@ -53,17 +60,32 @@ def parseTextgroup(elt, parentElt):
 
 
 
-doc = x.parse("out.xml")
-pages = doc.getElementsByTagName("page")
-for page in pages:
-    layout = page.getElementsByTagName("layout")
-    elt = layout.item(0)
-    parseTextgroup(elt.childNodes[1], None)
+def isIn(sl, l):
+    return set(sl).issubset(l)
 
 
-for b in tabLayout:
-    b.printBox()
 
 
-# for box in tab:
-#     box.printBox()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

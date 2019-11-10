@@ -22,53 +22,29 @@ import json
 # gérer le cas du sport
 
 
-def getPDF():
-    result = re.get("https://stri-online.net/Gestion_STRI/TAV/M1/EDT_STRI2_M1.pdf")
-    with open('edt.pdf','wb') as f:
-        f.write(result.content)
-
-def pdfToTXTfile(filepath):
-    f = open("out.txt",'w')
-    subprocess.run(["pdf2txt.py",filepath],text=True,stdout=f,check=True)
-    f.close()
-
-def pdfToXML(filepath):
-    f = open("out.xml",'w')
-    subprocess.run(["pdf2txt.py",'-t','xml',filepath],text=True,stdout=f,check=True)
-    f.close()
-
-t = ""
-
-# pdfToTXTfile("out.pdf")
-# pdfToXML("out.pdf")
-# f = open("lol.xml",'r')
-# tab = f.readlines()
-
-class semaine:
-    id = None
-    box = None
-    def __init__(self,id,box):
-        self.id = id
-        self.box = box
-    def printSemaine(self):
-        print(f"semaine {self.id} boite {self.box}")
 
 
-class boxClass:
+####global variables
+tabLayout = [[]]
+
+####classes
+class boxClass: # a box class generated from a textbox or textgroup xml object
     id = None
     box = None
     value = None
+    page = None
     parentBox = ""
-    def __init__(self,id,box,value,parentBox):
+    def __init__(self,id,box,value,parentBox, page):
         self.id = id
         self.box = [float(i) for i in box.split(",")]
         self.value = value
         self.parentBox = [float(i) for i in parentBox.split(",")]
+        self.page = page
     def printBox(self):
-        print(f"boite:\n\t {self.id}\n boite:\n\t {self.box}\n value:\n\t {self.value}\n parent:\n\t {self.parentBox}")
+        print(f"boite:\n\t {self.id}\n boite:\n\t {self.box}\n value:\n\t {self.value}\n parent:\n\t {self.parentBox} \n page {self.page}")
 
 
-class coursClass:
+class coursClass: # a course object, with all the info we can get to setup the course on gcalendar
     jour = ""
     heureDepart = ""
     heureFin = ""
@@ -76,18 +52,28 @@ class coursClass:
     matiere = ""
     salle = ""
     prof = ""
-    def __init__(self, jour, heureDepart, heureFin, matiere, salle, prof):
+    idGrp = []
+    page = None
+    def __init__(self, jour, heureDepart, heureFin, matiere, salle, prof, idGrp, page):
         self.jour = jour
         self.heureDepart = heureDepart
         self.heureFin = heureFin
         self.matiere = matiere
         self.salle = salle
         self.prof = prof
-
+        self.idGrp = idGrp
+        self.page = page
     def printCours(self):
-        print(f"Cours de {self.matiere} le {self.jour} de {self.heureDepart} à {self.heureFin} en {self.salle} par {self.prof}")
+        print(f"Cours de {self.matiere} le {self.jour} de {self.heureDepart} à {self.heureFin} en {self.salle} par {self.prof}\n idGrp = {self.idGrp}\n page = {self.page}")
 
-def createEventObject(summary, location, description, start, end):
+
+
+
+
+
+#### google calendar interaction
+
+def createEventObject(summary, location, description, start, end): #create an event object to add in gcalendar
     event = {
     'summary': summary,
     'location': location,
@@ -107,13 +93,15 @@ def createEventObject(summary, location, description, start, end):
 
     return event
 
-#id du BON CALENDAR
+#id for the calendar to modify
 idC = "7auhv9oniguke3igbpmuuqlv9c@group.calendar.google.com"
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
-def addToGcal(evt):
+
+
+def addToGcal(evt):#add an event
     try:
         """Shows basic usage of the Google Calendar API.
         Prints the start and name of the next 10 events on the user's calendar.
@@ -144,11 +132,8 @@ def addToGcal(evt):
     except ImportError:
         pass
 
-def removeAllFromCal():
+def removeAllFromCal(): # clear the calendar
     try:
-        """Shows basic usage of the Google Calendar API.
-        Prints the start and name of the next 10 events on the user's calendar.
-        """
         creds = None
         # The file token.pickle stores the user's access and refresh tokens, and is
         # created automatically when the authorization flow completes for the first
@@ -184,38 +169,132 @@ def removeAllFromCal():
                 service.events().delete(calendarId=idC, eventId=event["id"]).execute()
             events = service.events().list(calendarId=idC, pageToken=page_token).execute()
             page_token = events.get('nextPageToken')
-
-
-
-
     except ImportError:
         pass
 
 
+#### Program functions
 
 
-tab = []
+def getPDF(): # get a updated version of the online PDF
+    result = re.get("https://stri-online.net/Gestion_STRI/TAV/M1/EDT_STRI2_M1.pdf")
+    with open('edt.pdf','wb') as f:
+        f.write(result.content)
 
-doc = x.parse("out.xml")
-pages = doc.getElementsByTagName("page")
-for page in pages:
-    boxes = page.getElementsByTagName("textbox")
-    for box in boxes:
-        textlines = box.getElementsByTagName("textline")
-        for textline in textlines:
-            texts = textline.getElementsByTagName("text")
-            for text in texts:
-                t += text.firstChild.data
-            tab.append(boxClass(box.getAttribute("id"),textline.getAttribute("bbox"),t[:-1],box.getAttribute("bbox")))
-            t = ""
 
-#<textline bbox="108.000,500.620,129.336,510.238">
-#bbox : up left, low left, up right, low right
+def pdfToTXTfile(filepath):#deprecated, use pdfToXML
+    f = open("out.txt",'w')
+    subprocess.run(["pdf2txt.py",filepath],text=True,stdout=f,check=True)
+    f.close()
+
+
+def pdfToXML(filepath):#convert a pdf file to a readable xml file via the pdf2txt.py python app
+    f = open("out.xml",'w')
+    subprocess.run(["pdf2txt.py",'-t','xml',filepath],text=True,stdout=f,check=True)
+    f.close()
+
+
+
+
+#### parse le document xml
+
+
+def parseTextLine():
+    global tabLayout
+    t = ""
+    i = 0
+    tab = []
+    doc = x.parse("out.xml")
+    pages = doc.getElementsByTagName("page")
+    for page in pages:
+        tabLayout.append([])
+        boxes = page.getElementsByTagName("textbox")
+        for box in boxes:
+            textlines = box.getElementsByTagName("textline")
+            for textline in textlines:
+                texts = textline.getElementsByTagName("text")
+                for text in texts:
+                    t += text.firstChild.data
+                tab.append(boxClass(box.getAttribute("id"),textline.getAttribute("bbox"),t[:-1],box.getAttribute("bbox"),i))
+                t = ""
+        i += 1
+
+
+
+    pages = doc.getElementsByTagName("page")
+    i = 0
+    for page in pages:
+        layout = page.getElementsByTagName("layout")
+        elt = layout.item(0)
+        parseTextgroup(elt.childNodes[1],"0.0 ,0.0 , 0.0, 0.0", i)
+        i += 1
+    return tab
+
+#TODO fix parent box
+def parseTextgroup(elt, parentElt, page): # recursive private function for parseTextLine
+    global tabLayout
+    id = []
+    e = elt.getElementsByTagName("textgroup")
+    if e == []:
+        for tb in elt.getElementsByTagName("textbox"):
+            id.append(int(tb.getAttribute("id")))
+        # tabLayout.append(boxClass(id, elt.getAttribute("bbox"),"value",parentElt))
+        tabLayout[page].append(boxClass(id, elt.getAttribute("bbox"),"value","0.0 ,0.0 , 0.0, 0.0", page))
+        id = ""
+    else:
+        for tb in elt.getElementsByTagName("textbox"):
+             id.append(int(tb.getAttribute("id")))
+        # tabLayout.append(boxClass(id, elt.getAttribute("bbox"),"value",parentElt))
+        tabLayout[page].append(boxClass(id, elt.getAttribute("bbox"),"value","0.0 ,0.0 , 0.0, 0.0", page))
+        id = []
+        for el in e:
+            parseTextgroup(el, e,page)
+
+
+
+def upscaleHour(heure, res):
+    #heure is dict
+
+    j = 0
+    k = 0
+    nheure = {}
+    nheure["07h45"] = boxClass(None,f"108.0,510.13,113.0,520.225", None, "0.0,0.0,0.0,0.0",None)
+    l = list(heure.keys())
+    BtoA = 0
+    for i in range(0, len(l)-1):
+        pos, pos2 = heure[l[i]].box[0], heure[l[i+1]].box[0]
+        size = heure[l[i]].box[2] - heure[l[i]].box[0]
+        BtoA = pos2 - pos
+        while j < 60:
+            # print(f"{heure[l[i]].value.zfill(2)}{str(j).zfill(2)}", f"{pos + (BtoA*(k/res))},{heure[l[i]].box[1]},{pos + (BtoA*(k/res))+size},{heure[l[i]].box[3]}")
+            nheure[f"{heure[l[i]].value.zfill(2)}{str(j).zfill(2)}"] = boxClass(None,f"{pos + (BtoA*(k/res))},{heure[l[i]].box[1]},{pos + (BtoA*(k/res))+size},{heure[l[i]].box[3]}", None, "0.0,0.0,0.0,0.0", None)
+            j += int(60/res)
+            k += 1
+        j = 0
+        k = 0
+
+    return nheure
+
+
+
 
 
 #box : a boxClass object
-#heure : a list of boxes corresponding to hours with 8h first and 19h last
+#heure : a dict of boxes corresponding to hours with 8h first and 19h last
 def getHeureCours(box, heure):  # checks for the alignement with known hours "lines" to guess at what time the course starts and ends
+    heureDepart = ""
+    heureFin  = ""
+    x1,x2,x3,x4 = box.box
+    for h in heure:
+        h1,h2,h3,h4 = heure[h].box
+        if x1 <= h1 and heureDepart == "":
+            heureDepart = h
+        if x3 <= h1 and heureFin == "":
+            heureFin = h
+    return heureDepart, heureFin
+
+
+def getOldHeureCours(box, heure):  # checks for the alignement with known hours "lines" to guess at what time the course starts and ends
     heureDepart = ""
     heureFin  = ""
     x1,x2,x3,x4 = box.parentBox
@@ -262,7 +341,11 @@ def getHeureCours(box, heure):  # checks for the alignement with known hours "li
 
     return heureDepart, heureFin
 
-def getNbrJour(pr):
+
+
+
+
+def getNbrJour(pr): # get the number of day in a month based on the month name
     dico = {}
     mois = pr[3:]
     dico["janv"] = 31
@@ -276,7 +359,7 @@ def getNbrJour(pr):
     dico["déc"] = 31
     return dico[mois]
 
-def getMonthNbr(pr):
+def getMonthNbr(pr):# get the month number based on the month name
     dico = {}
     mois = pr
     dico["janv"] = 1
@@ -293,7 +376,7 @@ def getMonthNbr(pr):
     dico["déc"] = 12
     return dico[mois]
 
-def getNextMonth(pr):
+def getNextMonth(pr): # get the next month after the given one
     mois = pr[3:]
     l = ["janv", "feb", "mar", "avr","mai","juin","juil","aout","sep","oct","nov","déc"]
     i = 0
@@ -313,11 +396,10 @@ def getYear(pr): # TODO fix quand j'aurais la foi
 
 
 
-def getDate(pr, jour):
+def getDate(pr, jour): # get the date for a day of the week and the first day of the week
     jour = jour.value
     mois = pr[3:]
     date = int(pr[0:2])
-    # print(jour, date)
     if jour == "Lundi":
         date = date
     if jour == "Mardi":
@@ -340,13 +422,12 @@ def getDate(pr, jour):
         if date > getNbrJour(pr):
             date = 4
             mois = getNextMonth(pr)
-    # print(f"{date} {mois}")
     return f"{jour} {date} {mois}"
 
 
 
 
-def getJourCours(box, prJourSemaine, mois):
+def getJourCours(box, prJourSemaine, mois):#get the boxes containing the days of the week to check for alignent and know what course is when
     i = 0
     jourListe = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi"]
     regex = re.compile("[0-9][0-9]\/[a-zé]{3}")
@@ -371,7 +452,7 @@ def getJourCours(box, prJourSemaine, mois):
         i += 1
 
 
-def getJourBox(box, prJourSemaine, mois):
+def getJourBox(box, prJourSemaine, mois): # ?
     i = 0
 
 
@@ -391,8 +472,7 @@ def getJourBox(box, prJourSemaine, mois):
                 return getDate(prJourSemaine[i],jour) # prof et salle 2e ligne
         i += 1
 
-#retourne le jour est l'heure d'une case de
-def getProfBox(box, prJourSemaine, mois):
+def getProfBox(box, prJourSemaine, mois): # return the "day and hour" coords to check what prof. teaches what course and when.
     i = 0
 
     date = re.compile("\([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4}\)")
@@ -401,7 +481,6 @@ def getProfBox(box, prJourSemaine, mois):
 
     if date.match(box.value) or salle.match(box.value):
         return -1
-
     if prof.match(box.value):
         for semaine in mois:
             x1,x2,x3,x4 = box.box
@@ -409,9 +488,10 @@ def getProfBox(box, prJourSemaine, mois):
                 # jour.printBox()
                 j1,j2,j3,j4 = jour.box
 
-                if j4 > x2  and j4 < x4: # cours G1
+
+                if j4 >= x2  and j4 < x4: # cours G1
                     return 1,getDate(prJourSemaine[i],jour) # prof et salle même ligne
-                elif j2 > x2 and j2 < x4: #cours G2
+                elif j2 > x2 and j4 > x4 and j2 < x4: #cours G2
                     return 2,getDate(prJourSemaine[i],jour) # idem mais 2nd ligne
                 elif j2 > x2 and j4 < x4: # cours g1+g2
                     return 3,getDate(prJourSemaine[i],jour) # prof et salle 2e ligne
@@ -419,116 +499,147 @@ def getProfBox(box, prJourSemaine, mois):
 
 
 
-i = 8
-heure = {}
-#on récupére les coords de 8h, 9h, 10h...for box in tab:
-for box in tab:
-    if f"{i}h" in box.value and f"{i+10}'" not in box.value:
-           # box.printBox()
-            heure[f"{i}h"] = box
-            i += 1
 
-#on va récup la position de chaque jour de chaque semaine...
-mois = [] # liste de semaine
-prJourSemaine = [] # liste des premiers jours de la semaine
-semaine = {} #dico de jour
+def getPosDays(tab):
+    #on va récup la position de chaque jour de chaque semaine...
+    mois = [] # liste de semaine
+    prJourSemaine = [] # liste des premiers jours de la semaine
+    semaine = {} #dico de jour
+    tabSalles = []
+    tabProf = []
+    i = 8
+    heure = {}
 
-jourListe = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi"]
-
-for box in tab:
-    for j in jourListe:
-        if j in box.value:
-            semaine[j] = box
-            if j == "Vendredi":
-                mois.append(semaine)
-                semaine = {}
+    jourListe = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi"]
 
 
-regex = re.compile("[0-9][0-9]\/[a-zé]{3}")
-
-for box in tab:
-    if regex.match(box.value):
-        prJourSemaine.append(box.value)
-
-
-salle = re.compile("[UK][0-9]{0,2}\-[Aa0-9]{1,3}")
-
-tabSalles = []
-for box in tab:
-    if salle.match(box.value):
-        tabSalles.append(box)
-
-
-tabProf = []
-prof = re.compile("[A-Z\/]+")
-for box in tab:
-    if prof.fullmatch(box.value):
-        tabProf.append(box)
+    regex = re.compile("[0-9][0-9]\/[a-zé]{3}")
+    salle = re.compile("[UK][0-9]{0,2}\-[Aa0-9]{1,3}")
+    salleAnglais = re.compile("[K][0-9]{0,2}")
+    prof = re.compile("[A-Z\/]+")
 
 
 
-listeCoursSuivi = ["BD/WD"]
-edt = []
-salle = None
-prof = None
-for box in tab:
-        h1, h2 = getHeureCours(box, heure.values())
-        try:
-            (groupe,jour) = getJourCours(box, prJourSemaine, mois)
-        except TypeError:
-            box.printBox()
-            break
-        if groupe == 1:
-            # la salle et le prof sont sur la même ligne 1
-            for s in tabSalles:
-                sj = getJourBox(s, prJourSemaine, mois)
-                hs1, hs2 = getHeureCours(s, heure.values())
-                # print(h2, hs2)
-                if sj == jour and hs2 == h2:
-                    # print("===========",jour,sj)
-                    # s.printBox()
-                    salle = s
-                    break
-            for p in tabProf:
-                (gr,pj) = getProfBox(p, prJourSemaine, mois)
+    for box in tab:
+        if f"{i}h" in box.value and f"{i+10}'" not in box.value:
+            # box.printBox()
+                heure[f"{i}h"] = box
+                i += 1
+        if prof.fullmatch(box.value):
+            tabProf.append(box)
+        if salle.match(box.value) or salleAnglais.match(box.value):
+            tabSalles.append(box)
+        if regex.match(box.value):
+            prJourSemaine.append(box.value)
+        for j in jourListe:
+            if j in box.value:
+                semaine[j] = box
+                if j == "Vendredi":
+                    mois.append(semaine)
+                    semaine = {}
 
-                if pj == jour and gr == 2 and " - " not in box.value:
-                    prof = p
-                    break
+
+    return mois, prJourSemaine, tabSalles, tabProf, heure
+
+
+
+
+def ajouterLesCours(mois, prJourSemaine, heure,nheure, tab):
+    edt = []
+    salle = None
+    prof = None
+    for box in tab:
+            h1, h2 = getOldHeureCours(box, heure.values())
+            try:
+                (groupe,jour) = getJourCours(box, prJourSemaine, mois)
+            except TypeError:
+                box.printBox()
+                break
+            if groupe == 1:
+                # la salle et le prof sont sur la même ligne 1
+                for s in tabSalles:
+                    sj = getJourBox(s, prJourSemaine, mois)
+                    hs1, hs2 = getOldHeureCours(s, heure.values())
+
+                    if sj == jour and hs2 == h2:
+                        # print("===========",jour,sj)
+                        # s.printBox()
+                        salle = s
+                        break
+                for p in tabProf:
+                    (gr,pj) = getProfBox(p, prJourSemaine, mois)
+                    # box.printBox()
+                    # print(gr)
+                    if pj == jour and gr == 2 and " - " not in box.value and "Anglais" not in box.value:
+                        prof = p
+                        break
+                    else:
+                        prof = None
+                # print(h1,h2)
+                if prof is not None:
+                    edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, salle.id, prof.id],box.page ))
                 else:
-                    prof = None
-            if prof is not None:
-                edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value ))
-            else:
-                prof = box.value[box.value.find("-")+2:]
-                edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ))
+                    prof = box.value[box.value.find("-")+2:]
+                    edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id, salle.id],box.page ))
+    return edt
 
 
 
 
 
+def isIn(sl, l):
+    return set(sl).issubset(l)
 
 
-print("Agenda Groupe 1 non ordonné")
+def deDup(liste):
+    return list(set(liste))
 
-removeAllFromCal()
+
+def getTextGroup(tabLayout, idList, page):
+    idList = [int(i) for i in deDup(idList)]
+    minBox = 0
+    minBoite = None
+    print(idList)
+    for box in tabLayout[page]:
+        if isIn(idList, box.id):
+            if minBox == 0 or len(box.id) < minBox :
+                minBox = len(box.id)
+                minBoite = box
+
+    minBoite.printBox()
+    return minBoite
 
 
-# for c in edt:
-#     c.printCours()
-#     d = c.jour[c.jour.rfind(' ')+1:]
-#     j = c.jour[c.jour.find(' '):][1:]
-#     j = j[:j.find(' ')]
-#     dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureDepart.replace('h',':')}"
-#     print(dateStr)
-#     dateDebut = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
-#     dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureFin.replace('h',':')}"
-#     print(dateStr)
-#     dateFin = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
-#     event = createEventObject(c.matiere,c.salle,"cours",dateDebut.isoformat(),dateFin.isoformat())
-#     print(event)
-#     addToGcal(event)
-#
+
+tabBox = parseTextLine()
+mois, prJourSemaine, tabSalles, tabProf, heure = getPosDays(tabBox)
+nheure = upscaleHour(heure, 12)
+edt = ajouterLesCours(mois, prJourSemaine,heure, nheure, tabBox)
+
+
+
+# print("Agenda Groupe 1 non ordonné")
+
+# removeAllFromCal()
+
+
+for c in edt:
+    boiteCours = getTextGroup(tabLayout, c.idGrp, c.page)
+    c.heureDepart, c.heureFin = getHeureCours(boiteCours, nheure)
+    c.printCours()
+    d = c.jour[c.jour.rfind(' ')+1:]
+    j = c.jour[c.jour.find(' '):][1:]
+    j = j[:j.find(' ')]
+    dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureDepart.replace('h',':')}"
+    print(dateStr)
+    dateDebut = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
+    dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureFin.replace('h',':')}"
+    print(dateStr)
+    dateFin = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
+    event = createEventObject(c.matiere,c.salle,"cours",dateDebut.isoformat(),dateFin.isoformat())
+    print(event)
+    # addToGcal(event)
+
 
 
 
