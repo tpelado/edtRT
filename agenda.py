@@ -22,12 +22,13 @@ from math import sqrt
 #TODO LIST
 # nettoyer le code
 # gérer le cas du sport
+#osekour
+
+
+###### Ce code est moche et pas commenté. Il est aussi relativement imbitable. 
 
 
 
-
-####global variables
-tabLayout = [[]]
 
 ####classes
 class boxClass: # a box class generated from a textbox or textgroup xml object
@@ -36,7 +37,12 @@ class boxClass: # a box class generated from a textbox or textgroup xml object
     value = None
     page = None
     parentBox = ""
-    def __init__(self,id,box,value,parentBox, page):
+    def __init__(self,id,box,value,parentBox, page)
+
+
+
+####global variables
+tabLayout = [[]]:
         self.id = id
         self.box = [float(i) for i in box.split(",")]
         self.value = value
@@ -162,15 +168,15 @@ def removeAllFromCal(): # clear the calendar
 
         page_token = None
         events = service.events().list(calendarId=idC, pageToken=page_token).execute()
-        print(events)
+        # print(events)
         page_token = events.get('nextPageToken')
 
         while page_token is not None:
-            print(events)
+            # print(events)
             for event in events['items']:
                 service.events().delete(calendarId=idC, eventId=event["id"]).execute()
-            events = service.events().list(calendarId=idC, pageToken=page_token).execute()
             page_token = events.get('nextPageToken')
+            events = service.events().list(calendarId=idC, pageToken=page_token).execute()
     except ImportError:
         pass
 
@@ -223,7 +229,7 @@ def parseTextLine():
                         pos = text.getAttribute("bbox")
                     t += text.firstChild.data
                 # tab.append(boxClass(box.getAttribute("id"),textline.getAttribute("bbox"),t[:-1],,i))
-                tab.append(boxClass(box.getAttribute("id"),pos,t[:-1],box.getAttribute("bbox"),i))
+                tab.append(boxClass(box.getAttribute("id"),pos,t[:-1],box.getAttribute("bbox"),int(page.getAttribute("id"))))
                 flag = True
                 pos = None
                 t = ""
@@ -236,7 +242,7 @@ def parseTextLine():
     for page in pages:
         layout = page.getElementsByTagName("layout")
         elt = layout.item(0)
-        parseTextgroup(elt.childNodes[1],"0.0 ,0.0 , 0.0, 0.0", i)
+        parseTextgroup(elt.childNodes[1],"0.0 ,0.0 , 0.0, 0.0",int(page.getAttribute("id")))
         i += 1
     return tab
 
@@ -283,6 +289,7 @@ def upscaleHour(heure, res):
         j = 0
         k = 0
 
+    nheure["19h00"] = boxClass(None,f"794.0625, 510.13, 805.8125, 520.225", None, "0.0,0.0,0.0,0.0",None)
     return nheure
 
 
@@ -447,19 +454,23 @@ def getJourCours(box, prJourSemaine, mois):#get the boxes containing the days of
     if (len(box.value) <= 3) or regex.match(box.value) or (box.value in jourListe) or ("EMPLOI DU TEMPS" in box.value) or date.match(box.value) or salle.match(box.value) or "Durant" in box.value or "présence" in box.value or "Pour" in box.value:
         return (-1,None)
     for semaine in mois:
+       
         x1,x2,x3,x4 = box.box
         for jour in semaine.values():
-            # jour.printBox()
-            j1,j2,j3,j4 = jour.box
-
-
-            if j4 > x2  and j4 < x4: # cours G1
-                return (1,getDate(prJourSemaine[i],jour)) # prof et salle même ligne
-            elif j2 > x2 and j2 < x4: #cours G2
-                return (2,getDate(prJourSemaine[i],jour)) # idem mais 2nd ligne
-            elif j2 > x2 and j4 < x4: # cours g1+g2
-                return (3,getDate(prJourSemaine[i],jour)) # prof et salle 2e ligne
+            if jour.page == box.page:
+                # jour.printBox()
+                j1,j2,j3,j4 = jour.box
+    
+    
+                if j4 > x2  and j4 < x4: # cours G1
+                    return (1,getDate(prJourSemaine[i],jour)) # prof et salle même ligne
+                elif j2 > x2 and j2 < x4: #cours G2
+                    return (2,getDate(prJourSemaine[i],jour)) # idem mais 2nd ligne
+                elif j2 > x2 and j4 < x4: # cours g1+g2
+                    return (3,getDate(prJourSemaine[i],jour)) # prof et salle 2e ligne
         i += 1
+
+
 
 
 def getJourBox(box, prJourSemaine, mois): # ?
@@ -471,16 +482,18 @@ def getJourBox(box, prJourSemaine, mois): # ?
 
         x1,x2,x3,x4 = box.box
         for jour in semaine.values():
+            print("==============================",semaine.page)
+            if semaine.page == box.page:
             # jour.printBox()
-            j1,j2,j3,j4 = jour.box
-
-            if j4 >= x2  and j4 < x4: # cours G1
-                return getDate(prJourSemaine[i],jour) # prof et salle même ligne
-            elif j2 > x2 and j2 < x4: #cours G2
-                return getDate(prJourSemaine[i],jour) # idem mais 2nd ligne
-            elif j2 > x2 and j4 < x4: # cours g1+g2
-                return getDate(prJourSemaine[i],jour) # prof et salle 2e ligne
-        i += 1
+                j1,j2,j3,j4 = jour.box
+                
+                if j4 >= x2  and j4 < x4: # cours G1
+                    return getDate(prJourSemaine[i],jour) # prof et salle même ligne
+                elif j2 > x2 and j2 < x4: #cours G2
+                    return getDate(prJourSemaine[i],jour) # idem mais 2nd ligne
+                elif j2 > x2 and j4 < x4: # cours g1+g2
+                    return getDate(prJourSemaine[i],jour) # prof et salle 2e ligne
+            i += 1
 
 def getProfBox(box, prJourSemaine, mois): # return the "day and hour" coords to check what prof. teaches what course and when.
     i = 0
@@ -554,50 +567,6 @@ def getPosDays(tab):
 
 
 
-def ajouterLesCoursOLD(mois, prJourSemaine, heure,nheure, tab):
-    edt = []
-    salle = None
-    prof = None
-    for box in tab:
-            h1, h2 = getOldHeureCours(box, heure.values())
-            try:
-                (groupe,jour) = getJourCours(box, prJourSemaine, mois)
-            except TypeError:
-                box.printBox()
-                break
-            if groupe == 1:
-                # la salle et le prof sont sur la même ligne 1
-                for s in tabSalles:
-                    sj = getJourBox(s, prJourSemaine, mois)
-                    hs1, hs2 = getOldHeureCours(s, heure.values())
-                    # s.printBox()
-                    # print(h1, hs1, h2, hs2 )
-                    if sj == jour and hs2 == h2:
-                        # print("===========",jour,sj)
-                        # s.printBox()
-                        salle = s
-                        break
-                for p in tabProf:
-                    (gr,pj) = getProfBox(p, prJourSemaine, mois)
-                    # box.printBox()
-                    # print(gr)
-                    if pj == jour and gr == 2 and " - " not in box.value and "Anglais" not in box.value:
-                        prof = p
-                        break
-                    else:
-                        prof = None
-                # print(h1,h2)
-                if prof is not None:
-                    edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, prof.id],box.page ))
-                    # edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, salle.id, prof.id],box.page ))
-                else:
-                    prof = box.value[box.value.find("-")+2:]
-                    # edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id, salle.id],box.page ))
-                    edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id],box.page ))
-    return edt
-
-
-
 
 def ajouterLesCours(mois, prJourSemaine, heure,nheure, tab):
     edt = []
@@ -607,35 +576,46 @@ def ajouterLesCours(mois, prJourSemaine, heure,nheure, tab):
             h1, h2 = getOldHeureCours(box, heure.values())
             try:
                 (groupe,jour) = getJourCours(box, prJourSemaine, mois)
+            
             except TypeError:
                 box.printBox()
                 break
             if groupe == 1:
-                if "Sport" not in box.value:
-                    aligned, salle = determineClosestFromBox(box, tabSalles)
-                    if not aligned:
-                        osef, prof = determineClosestFromBox(box, tabProf)
-                        # edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, salle.id, prof.id],box.page ))
-                        try:
-                            edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, prof.id],box.page ))
-                        except AttributeError:
-                            if prof is None:
-                                edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , None,[box.id],box.page ))
-                            elif salle is None:
-                                edt.append(coursClass(jour,h1,h2 ,box.value,None , None,[box.id],box.page ))
-                    elif "-" in box.value:
-                        prof = box.value[box.value.find("-")+2:]
-                        edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id],box.page ))
-                        # edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id, salle.id],box.page ))
-                        prof = None
-                    else:
-                        # edt.append(coursClass(jour,h1,h2 ,None,salle.value ,prof ,[box.id, salle.id],box.page ))
-                        try:
-                            edt.append(coursClass(jour,h1,h2 ,None,salle.value ,prof ,[box.id],box.page ))
-                        except AttributeError:
-                            edt.append(coursClass(jour,h1,h2 ,None,None ,prof ,[box.id],box.page ))
+            
+                aligned, salle = determineClosestFromBox(box, tabSalles)
+                if not aligned:
+                    osef, prof = determineClosestFromBox(box, tabProf)
+                    if salle is not None and prof is not None:
+                        if prof.box[1] != salle.box[1]: # la salle est le prof ne sont pas alignés : ya un soucis
+                            prof = None
+                            salle = None
+                        
+                    
+                    
+                    
+                    # edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, salle.id, prof.id],box.page ))
+                
+                
+                
+                
+                
+                if salle is not None and prof is not None and "-" not in box.value and "Sport" not in box.value:
+                    edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, prof.id],box.page ))
+                   
+                elif "-" in box.value and salle is not None:
+                    prof = box.value[box.value.find("-")+2:]
+                    edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id],box.page ))
+                    prof = None
+                
+                elif salle is not None:
+                    # edt.append(coursClass(jour,h1,h2 ,None,salle.value ,prof ,[box.id, salle.id],box.page ))
+                    try:
+                        edt.append(coursClass(jour,h1,h2 ,box.value,salle.value ,prof ,[box.id, prof.id],box.page ))
+                    except AttributeError:
+                        edt.append(coursClass(jour,h1,h2 ,box.value,salle.value ,None,[box.id],box.page ))
+               
                 else:
-                    edt.append(coursClass(jour,h1,h2 ,None,None,None,[box.id],box.page ))
+                    edt.append(coursClass(jour,h1,h2 ,box.value,None,None,[box.id],box.page ))
 
 
     return edt
@@ -660,7 +640,7 @@ def computeDistance(box1, box2): # compute the absolute distance between the mid
     # print(f"absolute distance is {x} in x and {y} in y")
     return x,y
 
-def computeDistance2(box1, box2): # compute the absolute distance between the middle of box 2 and the middle of box 1
+def computeDistance2(box1, box2): # NOT USED compute the absolute distance between the middle of box 2 and the middle of box 1
     x1, x2, x3, x4 = box1.box
     w1, w2, w3, w4 = box2.box
     mb1 = ((x1+x3)/2,(x2+x4)/2)
@@ -686,7 +666,7 @@ def determineClosestFromBox(box, tab): # return the element from the tab which i
     for b in tab:
         # print(b.page, box.page)
 
-        if (b.box[1]  <= box.box[1] or abs(b.box[1] - box.box[1]) < 2) and (b.box[0] >= box.box[0] or abs(b.box[0] - box.box[0]) < 2) :
+        if (b.box[1]  <= box.box[1] or abs(b.box[1] - box.box[1]) < 2) and (b.box[0] >= box.box[0] or abs(b.box[0] - box.box[0]) < 2)  and ((b.box[1] - box.box[1]) < 50 ) and b.page == box.page :
             x,y = computeDistance(box, b)
             # print(f"{x,y}  {cx, cy}")
             if isClosest((x,y),(cx,cy))[1]: # closer in Y, not in X
@@ -697,7 +677,7 @@ def determineClosestFromBox(box, tab): # return the element from the tab which i
                 cx,cy = x,y
                 closestBox = b
 
-    # closestBox.printBox()
+    
     return cy==0, closestBox
 
 
@@ -739,8 +719,10 @@ def getTextGroup(tabLayout, idList, page):
             if minBox == -1 or len(box.id) < minBox :
                 minBox = len(box.id)
                 minBoite = box
-
-    # minBoite.printBox()
+    print("*****************************************")
+    print(idList)
+    minBoite.printBox()
+    print("***************FIN******************")
     return minBoite
 
 
@@ -767,8 +749,7 @@ edt = ajouterLesCours(mois, prJourSemaine,heure, nheure, tabBox)
 
 
 # print("Agenda Groupe 1 non ordonné")
-
-# removeAllFromCal()
+removeAllFromCal()
 
 
 # for s in tabSalles:
@@ -778,36 +759,42 @@ edt = ajouterLesCours(mois, prJourSemaine,heure, nheure, tabBox)
 #     print(getHeureCours(s, heure))
 #     print(getJourBox(s,prJourSemaine,mois))
 #     sleep(1)
+# 
 
+# for h in nheure:
+#     print(h)
+#     nheure[h].printBox()
 
-
-tabBox[56].printBox()
-tabSalles[12].printBox()
-
-
+# 
+edt = list(set(edt))
 
 for c in edt:
-    c.printCours()
-    boiteCours = getTextGroup(tabLayout, c.idGrp, c.page)
-    c.heureDepart, c.heureFin = getHeureCours(boiteCours, nheure)
-    c.printCours()
-    d = c.jour[c.jour.rfind(' ')+1:]
-    j = c.jour[c.jour.find(' '):][1:]
-    j = j[:j.find(' ')]
-    dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureDepart.replace('h',':')}"
-    print(dateStr)
-    dateDebut = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
-    dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureFin.replace('h',':')}"
-    print(dateStr)
-    dateFin = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
-    event = createEventObject(c.matiere,c.salle,"cours",dateDebut.isoformat(),dateFin.isoformat())
-    print(event)
-
-
-
-
-
-#     # addToGcal(event)
+    if c.page == 1:
+    # c.printCours()
+        boiteCours = getTextGroup(tabLayout, c.idGrp, c.page)
+        c.heureDepart, c.heureFin = getHeureCours(boiteCours, nheure)
+        c.heureFin = str(int(c.heureDepart[:2]) + 2)+c.heureDepart[2:]
+        if c.heureDepart == "19h00":
+            pass
+            # edt.remove(c)
+        else:
+            print("==============")
+            c.printCours()
+            d = c.jour[c.jour.rfind(' ')+1:]
+            j = c.jour[c.jour.find(' '):][1:]
+            j = j[:j.find(' ')]
+            dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureDepart.replace('h',':')}"
+            print(dateStr)
+            dateDebut = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
+            dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureFin.replace('h',':')}"
+            print(dateStr)
+            dateFin = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
+            try:
+                event = createEventObject(c.matiere,c.salle,"cours",dateDebut.isoformat(),dateFin.isoformat())
+            except ValueError:
+                pass
+            print(event)
+            addToGcal(event)
 
 
 
