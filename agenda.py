@@ -8,6 +8,7 @@ import xml.dom.minidom as x
 from json import dumps
 import re
 import datetime as dt
+from time import sleep
 import datetime
 import pickle
 import os.path
@@ -15,7 +16,8 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import json
-
+import sys
+from math import sqrt
 
 #TODO LIST
 # nettoyer le code
@@ -204,6 +206,8 @@ def parseTextLine():
     t = ""
     i = 0
     tab = []
+    pos = None
+    flag = True
     doc = x.parse("out.xml")
     pages = doc.getElementsByTagName("page")
     for page in pages:
@@ -214,8 +218,14 @@ def parseTextLine():
             for textline in textlines:
                 texts = textline.getElementsByTagName("text")
                 for text in texts:
+                    if flag:
+                        flag = False
+                        pos = text.getAttribute("bbox")
                     t += text.firstChild.data
-                tab.append(boxClass(box.getAttribute("id"),textline.getAttribute("bbox"),t[:-1],box.getAttribute("bbox"),i))
+                # tab.append(boxClass(box.getAttribute("id"),textline.getAttribute("bbox"),t[:-1],,i))
+                tab.append(boxClass(box.getAttribute("id"),pos,t[:-1],box.getAttribute("bbox"),i))
+                flag = True
+                pos = None
                 t = ""
         i += 1
 
@@ -464,7 +474,7 @@ def getJourBox(box, prJourSemaine, mois): # ?
             # jour.printBox()
             j1,j2,j3,j4 = jour.box
 
-            if j4 > x2  and j4 < x4: # cours G1
+            if j4 >= x2  and j4 < x4: # cours G1
                 return getDate(prJourSemaine[i],jour) # prof et salle même ligne
             elif j2 > x2 and j2 < x4: #cours G2
                 return getDate(prJourSemaine[i],jour) # idem mais 2nd ligne
@@ -544,7 +554,7 @@ def getPosDays(tab):
 
 
 
-def ajouterLesCours(mois, prJourSemaine, heure,nheure, tab):
+def ajouterLesCoursOLD(mois, prJourSemaine, heure,nheure, tab):
     edt = []
     salle = None
     prof = None
@@ -560,7 +570,8 @@ def ajouterLesCours(mois, prJourSemaine, heure,nheure, tab):
                 for s in tabSalles:
                     sj = getJourBox(s, prJourSemaine, mois)
                     hs1, hs2 = getOldHeureCours(s, heure.values())
-
+                    # s.printBox()
+                    # print(h1, hs1, h2, hs2 )
                     if sj == jour and hs2 == h2:
                         # print("===========",jour,sj)
                         # s.printBox()
@@ -577,13 +588,57 @@ def ajouterLesCours(mois, prJourSemaine, heure,nheure, tab):
                         prof = None
                 # print(h1,h2)
                 if prof is not None:
-                    edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, salle.id, prof.id],box.page ))
+                    edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, prof.id],box.page ))
+                    # edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, salle.id, prof.id],box.page ))
                 else:
                     prof = box.value[box.value.find("-")+2:]
-                    edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id, salle.id],box.page ))
+                    # edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id, salle.id],box.page ))
+                    edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id],box.page ))
     return edt
 
 
+
+
+def ajouterLesCours(mois, prJourSemaine, heure,nheure, tab):
+    edt = []
+    salle = None
+    prof = None
+    for box in tab:
+            h1, h2 = getOldHeureCours(box, heure.values())
+            try:
+                (groupe,jour) = getJourCours(box, prJourSemaine, mois)
+            except TypeError:
+                box.printBox()
+                break
+            if groupe == 1:
+                if "Sport" not in box.value:
+                    aligned, salle = determineClosestFromBox(box, tabSalles)
+                    if not aligned:
+                        osef, prof = determineClosestFromBox(box, tabProf)
+                        # edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, salle.id, prof.id],box.page ))
+                        try:
+                            edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, prof.id],box.page ))
+                        except AttributeError:
+                            if prof is None:
+                                edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , None,[box.id],box.page ))
+                            elif salle is None:
+                                edt.append(coursClass(jour,h1,h2 ,box.value,None , None,[box.id],box.page ))
+                    elif "-" in box.value:
+                        prof = box.value[box.value.find("-")+2:]
+                        edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id],box.page ))
+                        # edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id, salle.id],box.page ))
+                        prof = None
+                    else:
+                        # edt.append(coursClass(jour,h1,h2 ,None,salle.value ,prof ,[box.id, salle.id],box.page ))
+                        try:
+                            edt.append(coursClass(jour,h1,h2 ,None,salle.value ,prof ,[box.id],box.page ))
+                        except AttributeError:
+                            edt.append(coursClass(jour,h1,h2 ,None,None ,prof ,[box.id],box.page ))
+                else:
+                    edt.append(coursClass(jour,h1,h2 ,None,None,None,[box.id],box.page ))
+
+
+    return edt
 
 
 
@@ -595,18 +650,97 @@ def deDup(liste):
     return list(set(liste))
 
 
+def computeDistance(box1, box2): # compute the absolute distance between the middle of box 2 and the middle of box 1
+    x1, x2, x3, x4 = box1.box
+    w1, w2, w3, w4 = box2.box
+    meanBox1 = ((x1+x3)/2,(x2+x4)/2)
+    meanBox2 = ((w1+w3)/2,(w2+w4)/2)
+    x,y = abs(meanBox1[0] - meanBox2[0]),abs(meanBox1[1] - meanBox2[1])
+    # print(f"Mean of box 1 is {meanBox1}, Mean of box2 is {meanBox2}")
+    # print(f"absolute distance is {x} in x and {y} in y")
+    return x,y
+
+def computeDistance2(box1, box2): # compute the absolute distance between the middle of box 2 and the middle of box 1
+    x1, x2, x3, x4 = box1.box
+    w1, w2, w3, w4 = box2.box
+    mb1 = ((x1+x3)/2,(x2+x4)/2)
+    mb2 = ((w1+w3)/2,(w2+w4)/2)
+    return sqrt( ( ( mb2[0]-mb1[0] )**2) + ( ( mb2[1]-mb1[1] )**2) )
+
+
+
+
+def isClosest(xy1, xy2): # compute if xy1 tuple is less than xy2 tuple.
+    closestInX = xy1[0] < xy2[0]
+    closestInY = xy1[1] < xy2[1]
+    return closestInX, closestInY
+
+
+
+
+def determineClosestFromBox(box, tab): # return the element from the tab which is the closest to the box
+    cx, cy = (999999, 999999)
+    x,y = (99999,99999)
+    closestBox = None
+    # box.printBox()
+    for b in tab:
+        # print(b.page, box.page)
+
+        if (b.box[1]  <= box.box[1] or abs(b.box[1] - box.box[1]) < 2) and (b.box[0] >= box.box[0] or abs(b.box[0] - box.box[0]) < 2) :
+            x,y = computeDistance(box, b)
+            # print(f"{x,y}  {cx, cy}")
+            if isClosest((x,y),(cx,cy))[1]: # closer in Y, not in X
+                if(x < 200): # we don't want a room aligned with the course but on the other side of the time table
+                    cx,cy = x,y
+                    closestBox = b
+            elif (y == cy) and isClosest((x,y),(cx,cy))[0]: # closer in X but not in Y, y levels are the same
+                cx,cy = x,y
+                closestBox = b
+
+    # closestBox.printBox()
+    return cy==0, closestBox
+
+
+
+
+
+
+def determineClosestFromBox2(box, tab): # return the element from the tab which is the closest to the box
+    distance = 999999
+    cy = 0
+    d = 1
+    closestBox = None
+    # box.printBox()
+    for b in tab:
+        # print(b.page, box.page)
+        if (b.page == box.page):
+            if (b.box[1]  <= box.box[1] or abs(b.box[1] - box.box[1]) < 2) and (b.box[0] >= box.box[0] or abs(b.box[0] - box.box[0]) < 2) :
+                x,y = computeDistance(box, b)
+                d = computeDistance2(box, b)
+                if d < distance: #
+                    d = distance
+                    cy = y
+                    closestBox = b
+
+    # closestBox.printBox()
+    return cy==0, closestBox
+
+
+
+
+
 def getTextGroup(tabLayout, idList, page):
     idList = [int(i) for i in deDup(idList)]
-    minBox = 0
+    minBox = -1
     minBoite = None
     print(idList)
     for box in tabLayout[page]:
         if isIn(idList, box.id):
-            if minBox == 0 or len(box.id) < minBox :
+            if minBox == -1 or len(box.id) < minBox :
                 minBox = len(box.id)
                 minBoite = box
 
-    minBoite.printBox()
+    # minBoite.printBox()
     return minBoite
 
 
@@ -617,13 +751,43 @@ nheure = upscaleHour(heure, 12)
 edt = ajouterLesCours(mois, prJourSemaine,heure, nheure, tabBox)
 
 
+# tabSalles[0].printBox()
+# tabBox[27].printBox()
+# computeDistance(tabSalles[0], tabBox[27])
+
+
+
+# for b in tabBox:
+#     print(b.value)
+#     determineClosestFromBox(b, tabSalles)
+#     print("-------------")
+#     determineClosestFromBox(b, tabProf)
+#     print("===========================================")
+#     sleep(2)
+
 
 # print("Agenda Groupe 1 non ordonné")
 
 # removeAllFromCal()
 
 
+# for s in tabSalles:
+#
+#     s.printBox()
+#     print(getOldHeureCours(s, heure.values()))
+#     print(getHeureCours(s, heure))
+#     print(getJourBox(s,prJourSemaine,mois))
+#     sleep(1)
+
+
+
+tabBox[56].printBox()
+tabSalles[12].printBox()
+
+
+
 for c in edt:
+    c.printCours()
     boiteCours = getTextGroup(tabLayout, c.idGrp, c.page)
     c.heureDepart, c.heureFin = getHeureCours(boiteCours, nheure)
     c.printCours()
@@ -638,7 +802,12 @@ for c in edt:
     dateFin = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
     event = createEventObject(c.matiere,c.salle,"cours",dateDebut.isoformat(),dateFin.isoformat())
     print(event)
-    # addToGcal(event)
+
+
+
+
+
+#     # addToGcal(event)
 
 
 
