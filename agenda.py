@@ -22,6 +22,12 @@ from math import sqrt
 #TODO LIST
 # nettoyer le code
 # gérer le cas du sport
+#osekour
+
+
+###### Ce code est moche et pas commenté. Il est aussi relativement imbitable. 
+
+
 
 
 
