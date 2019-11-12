@@ -30,11 +30,6 @@ from math import sqrt
 
 
 
-
-
-####global variables
-tabLayout = [[]]
-
 ####classes
 class boxClass: # a box class generated from a textbox or textgroup xml object
     id = None
@@ -42,7 +37,12 @@ class boxClass: # a box class generated from a textbox or textgroup xml object
     value = None
     page = None
     parentBox = ""
-    def __init__(self,id,box,value,parentBox, page):
+    def __init__(self,id,box,value,parentBox, page)
+
+
+
+####global variables
+tabLayout = [[]]:
         self.id = id
         self.box = [float(i) for i in box.split(",")]
         self.value = value
@@ -50,6 +50,7 @@ class boxClass: # a box class generated from a textbox or textgroup xml object
         self.page = page
     def printBox(self):
         print(f"boite:\n\t {self.id}\n boite:\n\t {self.box}\n value:\n\t {self.value}\n parent:\n\t {self.parentBox} \n page {self.page}")
+
 
 
 class coursClass: # a course object, with all the info we can get to setup the course on gcalendar
