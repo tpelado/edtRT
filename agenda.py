@@ -2,11 +2,8 @@
 from __future__ import print_function
 
 import requests as req
-import pdfrw as p
-import pypdftk
 import subprocess
 import xml.dom.minidom as x
-from json import dumps
 import re
 import datetime as dt
 from time import sleep
@@ -19,7 +16,6 @@ from google.auth.transport.requests import Request
 import json
 import sys
 from math import sqrt
-from pythonlangutil.overload import Overload, signature
 
 
 #TODO LIST
