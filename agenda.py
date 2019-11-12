@@ -1,3 +1,4 @@
+
 from __future__ import print_function
 
 import requests as req
@@ -18,6 +19,8 @@ from google.auth.transport.requests import Request
 import json
 import sys
 from math import sqrt
+from pythonlangutil.overload import Overload, signature
+
 
 #TODO LIST
 # nettoyer le code
@@ -53,13 +56,14 @@ class coursClass: # a course object, with all the info we can get to setup the c
     jour = ""
     heureDepart = ""
     heureFin = ""
-    duree = ""
     matiere = ""
     salle = ""
     prof = ""
     idGrp = []
     page = None
-    def __init__(self, jour, heureDepart, heureFin, matiere, salle, prof, idGrp, page):
+    box = None
+    
+    def __init__(self, jour, heureDepart, heureFin, matiere, salle, prof, idGrp, page, boxe):
         self.jour = jour
         self.heureDepart = heureDepart
         self.heureFin = heureFin
@@ -68,8 +72,19 @@ class coursClass: # a course object, with all the info we can get to setup the c
         self.prof = prof
         self.idGrp = idGrp
         self.page = page
+        
+        self.box = boxe
+        if self.box is None:
+            exit()
+   
+
+    
+    
     def printCours(self):
-        print(f"Cours de {self.matiere} le {self.jour} de {self.heureDepart} à {self.heureFin} en {self.salle} par {self.prof}\n idGrp = {self.idGrp}\n page = {self.page}")
+        print(f"Cours de {self.matiere} le {self.jour} de {self.heureDepart} à {self.heureFin} en {self.salle} par {self.prof}\n idGrp = {self.idGrp}\n page = {self.page}\n")
+        print("=========\n box =" )
+        self.box.printBox()
+        print("\n =====FIN======")
 
 
 
@@ -276,14 +291,21 @@ def upscaleHour(heure, res): # takes a list of boxes representing hours (8h, 9h.
         size = heure[l[i]].box[2] - heure[l[i]].box[0]
         BtoA = pos2 - pos
         while j < 60:
-            nheure[f"{heure[l[i]].value.zfill(2)}{str(j).zfill(2)}"] = boxClass(None,f"{pos + (BtoA*(k/res))},{heure[l[i]].box[1]},{pos + (BtoA*(k/res))+size},{heure[l[i]].box[3]}", None, "0.0,0.0,0.0,0.0", None)
+            nheure[f"{heure[l[i]].value.zfill(3)}{str(j).zfill(2)}"] = boxClass(None,f"{pos + (BtoA*(k/res))},{heure[l[i]].box[1]},{pos + (BtoA*(k/res))+size},{heure[l[i]].box[3]}", None, "0.0,0.0,0.0,0.0", None)
             j += int(60/res)
             k += 1
         j = 0
         k = 0
 
     nheure["19h00"] = boxClass(None,f"794.0625, 510.13, 805.8125, 520.225", None, "0.0,0.0,0.0,0.0",None)
-    return nheure
+    
+    nheure2 = {}
+    
+    for k in sorted(nheure.keys()):
+        nheure2[k] = nheure[k]
+        
+        
+    return nheure2
 
 
 
@@ -297,6 +319,8 @@ def getHeureCours(box, heure):  # checks for the alignement with known hours "li
     x1,x2,x3,x4 = box.box
     for h in heure:
         h1,h2,h3,h4 = heure[h].box
+        # print(h)
+        # print(x1,"<=", h1, x3,"<=", h1)
         if x1 <= h1 and heureDepart == "":
             heureDepart = h
         if x3 <= h1 and heureFin == "":
@@ -447,7 +471,7 @@ def getJourCours(box, prJourSemaine, mois):#get the boxes containing the days of
     regex = re.compile("[0-9][0-9]\/[a-zé]{3}")
     date = re.compile("\([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4}\)")
     salle = re.compile("[UK][0-9]{0,2}\-[Aa0-9]{1,3}")
-    listeNoire = ["Durant", "présence", "Pour", "EMPLOI DU TEMPS"]
+    listeNoire = ["Durant", "présence", "Pour", "EMPLOI"]
     if (len(box.value) <= 3) or regex.match(box.value) or (box.value in jourListe) or date.match(box.value) or salle.match(box.value) or strInList(box.value, listeNoire):
         return (-1,None)
     for semaine in mois:
@@ -523,44 +547,45 @@ def ajouterLesCours(mois, prJourSemaine, heure,nheure, tab): # create a course f
             h1, h2 = getOldHeureCours(box, heure.values()) # get an idea of when the course starts and ends
             try:
                 (groupe,jour) = getJourCours(box, prJourSemaine, mois) # gets a day for the course
-            
+                if groupe == 1: # if the course is for us in group 1
+                
+                    aligned, salle = determineClosestFromBox(box, tabSalles) # we check if there is a room aligned with our course, if yes it means the prof name is in the course name. if not it means the prof name is under the course name
+                    if not aligned:
+                        osef, prof = determineClosestFromBox(box, tabProf) # we try to check whether or not we can get the prof name
+                        if salle is not None and prof is not None:
+                            if abs(prof.box[1] - salle.box[1]) > 10: # if the prof and room are not aligned, we're using the wrong room or room, so we discard them
+                                prof = None
+                                salle = None
+                                
+                    # we add the course to the timetable
+                    
+                    # we check if there is a "-" in the course name (meaning the prof value is wrong since there's no prof associated to this course)
+                    # we don't want to check for the "sport" course since it has no prof or room and we don't really care about this course anyway
+                    if salle is not None and prof is not None and "-" not in box.value and "Sport" not in box.value:
+                        edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, prof.id],box.page, box ))
+                    
+                    # we search the prof name in the course name and add the course 
+                    elif "-" in box.value and salle is not None:
+                        prof = box.value[box.value.find("-")+2:]
+                        edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id],box.page, box ))
+                        prof = None
+                    
+                    
+                    elif salle is not None:
+                        try:
+                            edt.append(coursClass(jour,h1,h2 ,box.value,salle.value ,prof ,[box.id, prof.id],box.page, box ))
+                        except AttributeError:
+                            edt.append(coursClass(jour,h1,h2 ,box.value,salle.value ,None,[box.id],box.page,box ))
+                
+                    else:
+                        edt.append(coursClass(jour,h1,h2 ,box.value,None,None,[box.id],box.page,box ))
+
+
             except TypeError:
+                print("THIS BOX HAS CAUSED AN EXECPTION PLEASE HELP ME GOD")
                 box.printBox()
-                break
-            if groupe == 1: # if the course is for us in group 1
+                
             
-                aligned, salle = determineClosestFromBox(box, tabSalles) # we check if there is a room aligned with our course, if yes it means the prof name is in the course name. if not it means the prof name is under the course name
-                if not aligned:
-                    osef, prof = determineClosestFromBox(box, tabProf) # we try to check whether or not we can get the prof name
-                    if salle is not None and prof is not None:
-                        if prof.box[1] != salle.box[1]: # if the prof and room are not aligned, we're using the wrong room or room, so we discard them
-                            prof = None
-                            salle = None
-                            
-                # we add the course to the timetable
-                
-                # we check if there is a "-" in the course name (meaning the prof value is wrong since there's no prof associated to this course)
-                # we don't want to check for the "sport" course since it has no prof or room and we don't really care about this course anyway
-                if salle is not None and prof is not None and "-" not in box.value and "Sport" not in box.value:
-                    edt.append(coursClass(jour,h1,h2 ,box.value,salle.value , prof.value,[box.id, prof.id],box.page ))
-                
-                # we search the prof name in the course name and add the course 
-                elif "-" in box.value and salle is not None:
-                    prof = box.value[box.value.find("-")+2:]
-                    edt.append(coursClass(jour,h1,h2 ,box.value[:box.value.find("-")-1],salle.value ,prof ,[box.id],box.page ))
-                    prof = None
-                
-                
-                elif salle is not None:
-                    try:
-                        edt.append(coursClass(jour,h1,h2 ,box.value,salle.value ,prof ,[box.id, prof.id],box.page ))
-                    except AttributeError:
-                        edt.append(coursClass(jour,h1,h2 ,box.value,salle.value ,None,[box.id],box.page ))
-               
-                else:
-                    edt.append(coursClass(jour,h1,h2 ,box.value,None,None,[box.id],box.page ))
-
-
     return edt
 
 
@@ -628,7 +653,7 @@ def getTextGroup(tabLayout, idList, page): # this takes the smallest box with al
     idList = [int(i) for i in deDup(idList)]
     minBox = -1
     minBoite = None
-    print(idList)
+    # print(idList)
     for box in tabLayout[page]:
         if isIn(idList, box.id):
             if minBox == -1 or len(box.id) < minBox :
@@ -641,9 +666,11 @@ def getTextGroup(tabLayout, idList, page): # this takes the smallest box with al
 
 dryRun = False # used to see courses withouth adding them to the calendar
 
+###################### main program
 
+if not dryRun:
+    updatePDF()
 
-updatePDF()
 
 
 tabBox = parseTextLine()
@@ -655,55 +682,58 @@ edt = ajouterLesCours(mois, prJourSemaine,heure, nheure, tabBox)
 
 
 
-
 if not dryRun:
     removeAllFromCal()
 
 
 
 
+
 edt = list(set(edt))
 
-
-
-matSuivie=["Réseaux Mobiles","Sécurité","Java","Gestion Réseaux","Anglais","BD/WD"]
-# matSuivie=["Java"]
-
-
-for c in edt:
-    if strInList(c.matiere,matSuivie):
-        
-    # c.printCours()
-        boiteCours = getTextGroup(tabLayout, c.idGrp, c.page)
-        c.heureDepart, c.heureFin = getHeureCours(boiteCours, nheure)
-        if c.heureDepart == "12h00":
-            c.heureDepart = "13h30" # fix pour un cours pété dans un groupe de boite pété
-        c.heureFin = str(int(c.heureDepart[:2]) + 2)+c.heureDepart[2:]
-        
-        if c.heureDepart == "19h00":
-            pass
+if True:
+    matSuivie=["Réseaux Mobiles","Sécurité","Java","Gestion Réseaux","Anglais","BD/WD", "Interco"]
+    # matSuivie=["Java"]
+    
+    
+    for c in edt:
+        if strInList(c.matiere,matSuivie):
             
-        
-            # edt.remove(c)
-        else:
-            print("==============")
-            c.printCours()
-            d = c.jour[c.jour.rfind(' ')+1:]
-            j = c.jour[c.jour.find(' '):][1:]
-            j = j[:j.find(' ')]
-            dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureDepart.replace('h',':')}"
-            print(dateStr)
-            dateDebut = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
-            dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureFin.replace('h',':')}"
-            print(dateStr)
-            dateFin = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
-            try:
-                event = createEventObject(c.matiere,c.salle,"cours",dateDebut.isoformat(),dateFin.isoformat())
-            except ValueError:
-                pass
-            # print(event)
-            if not dryRun:
-                addToGcal(event)
+            boiteCours = getTextGroup(tabLayout, c.idGrp, c.page)
+            c.heureDepart, c.heureFin = getHeureCours(boiteCours, nheure)
+            
+            if c.heureDepart == "10h00" and c.heureFin == "14h30": # fix pour un autre cours pété dans un groupe de boite encore plus pété 
+                c.heureDepart = "13h30"
+            
+            if c.heureDepart == "12h00":
+                c.heureDepart = "13h30" # fix pour un cours pété dans un groupe de boite pété
+            
+            c.heureFin = str(int(c.heureDepart[:2]) + 2)+c.heureDepart[2:]
+           
+            if c.heureDepart == "19h00":
+                pass # help 
+                
+            
+                # edt.remove(c)
+            else:
+                # print("==============")
+                # c.printCours()
+                d = c.jour[c.jour.rfind(' ')+1:]
+                j = c.jour[c.jour.find(' '):][1:]
+                j = j[:j.find(' ')]
+                dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureDepart.replace('h',':')}"
+                # print(dateStr)
+                dateDebut = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
+                dateStr=f"{getYear(d)}-{getMonthNbr(d)}-{j} {c.heureFin.replace('h',':')}"
+                # print(dateStr)
+                dateFin = datetime.datetime.strptime(dateStr, '%Y-%m-%d %H:%M')
+                try:
+                    event = createEventObject(c.matiere,c.salle,c.salle,dateDebut.isoformat(),dateFin.isoformat())
+                except ValueError:
+                    pass
+                # print(event)
+                if not dryRun:
+                    addToGcal(event)
 
 
 
