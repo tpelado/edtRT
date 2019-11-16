@@ -701,10 +701,18 @@ if True:
             if c.heureDepart == "10h00" and c.heureFin == "14h30": # fix pour un autre cours pété dans un groupe de boite encore plus pété 
                 c.heureDepart = "13h30"
             
+            hd = int(c.heureDepart[:2])
+            hf = int(c.heureFin[:2])
+            
+            if hf-hd > 3 or hf-hd < 2:
+                c.heureFin = str(int(c.heureDepart[:2]) + 2)+c.heureDepart[2:]
+        
+                
+            
             if c.heureDepart == "12h00":
                 c.heureDepart = "13h30" # fix pour un cours pété dans un groupe de boite pété
             
-            c.heureFin = str(int(c.heureDepart[:2]) + 2)+c.heureDepart[2:]
+          
            
             if c.heureDepart == "19h00":
                 pass # help 
